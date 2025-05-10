@@ -1,0 +1,48 @@
+services:
+  web:
+    build: .
+    volumes:
+      - ./:/app
+      # If you’d rather only mount migrations, replace the above with:
+      # - ./alembic/versions:/app/alembic/versions
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://webhook:secret@db:5432/webhook_db
+      - REDIS_URL=redis://redis:6379/0
+
+  worker:
+    build: .
+    volumes:
+      - ./:/app
+      # Or only migrations:
+      # - ./alembic/versions:/app/alembic/versions
+    command: ["python", "worker/worker.py"]
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DATABASE_URL=postgresql://webhook:secret@db:5432/webhook_db
+      - REDIS_URL=redis://redis:6379/0
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: webhook
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: webhook_db
+    ports:
+      - "5433:5432"       # ← expose to host for PgAdmin
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    ports:
+      - "6379:6379"   
+volumes:
+  pgdata:
